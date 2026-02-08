@@ -14,6 +14,17 @@ public class Program
         ConfigureSwagger(builder.Services);
         ConfigureServices(builder.Services, builder.Configuration);
 
+        builder.WebHost.ConfigureKestrel((context, options) =>
+        {
+            var kestrelSection = context.Configuration.GetRequiredSection("Kestrel");
+            options
+                .Configure(kestrelSection, true)
+                .Endpoint("HTTP", listenOPtions =>
+                {
+                });
+
+        });
+
         var app = builder.Build();
 
         app.UseSwagger();
