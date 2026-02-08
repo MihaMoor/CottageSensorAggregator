@@ -1,3 +1,7 @@
 <Solution>
-  <Project Path="CottageSensorAggregator.csproj" />
+  <Folder Name="/Solution Items/">
+    <File Path="README.md" />
+  </Folder>
+  <Project Path="src/Api/Api.csproj" />
+  <Project Path="src/ZontApi/ZontApi.csproj" Id="8b21f592-215a-45f1-adf4-2c0a804327ae" />
 </Solution>

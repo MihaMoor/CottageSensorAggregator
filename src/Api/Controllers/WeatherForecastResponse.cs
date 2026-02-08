@@ -1,6 +1,6 @@
-namespace CottageSensorAggregator
+namespace Api.Controllers
 {
-    public class WeatherForecast
+    public class WeatherForecastResponse
     {
         public DateOnly Date { get; set; }
 
