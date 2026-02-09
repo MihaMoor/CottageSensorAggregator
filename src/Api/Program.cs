@@ -1,5 +1,6 @@
 using CottageSensorAggregator.Settings;
 using Microsoft.OpenApi;
+using ZontApi;
 
 namespace CottageSensorAggregator;
 
@@ -54,6 +55,18 @@ public class Program
     private static void ConfigureServices(IServiceCollection services, IConfiguration configuration)
     {
         services.Configure<AppSettings>(configuration.GetSection("AppSettings"));
+        services.AddSingleton(options =>
+        {
+            AppSettings appSettings = configuration.GetSection("AppSettings").Get<AppSettings>()!;
+            ZontCredentials zontCredentials = new(
+                appSettings.ZontSettings.Login,
+                appSettings.ZontSettings.Password,
+                appSettings.ZontSettings.Email);
+            return new ZontRepository(zontCredentials, new()
+            {
+                BaseAddress = new(appSettings.ZontSettings.ApiUrl)
+            });
+        });
 
         services.AddControllers();
         services.AddOpenApi();
