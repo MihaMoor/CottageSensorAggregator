@@ -1,12 +1,6 @@
 ﻿using System.ComponentModel.DataAnnotations;
 
-namespace CottageSensorAggregator.Settings;
-
-public record AppSettings(
-    [Required] ZontSettings ZontSettings)
-{
-    public AppSettings() : this(new ZontSettings()) { }
-}
+namespace CottageSensorAggregator;
 
 public record ZontSettings(
     [Required] string Email,
