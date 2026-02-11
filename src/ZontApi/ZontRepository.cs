@@ -1,56 +1,79 @@
-﻿using System.ComponentModel.DataAnnotations;
+﻿using Microsoft.Extensions.Options;
 using System.Net.Http.Json;
+using System.Text.Json.Serialization;
 
-namespace ZontApi;
+namespace CottageSensorAggregator.ZontApi;
 
-public class ZontRepository(ZontCredentials credentials, HttpClient httpClient)
+/// <summary>
+/// Репозиторий доступа к WEB API Zont.
+/// </summary>
+/// <param name="zontSettings">Настройки доступа к Zont.</param>
+/// <param name="httpClient">Настроенный клиент со всеми стандартными заголовками для Zont.</param>
+public class ZontRepository
 {
-    public string token = string.Empty;
+    private static HttpClient s_httpClient = null!;
+    private readonly AppSettings _appSettings;
+
+    public ZontRepository(IOptionsSnapshot<AppSettings> appSettings, IHttpClientFactory httpClientFactory)
+    {
+        s_httpClient = httpClientFactory.CreateClient("ZontHttpClient");
+        _appSettings = appSettings.Value;
+    }
 
     public async Task AuthorizeAsync()
     {
-        var baseUrl = "https://my.zont.online/api/widget/v3/";
+        var requestBody = new { client_name = AppSettings.AppName };
 
-        // 1. Формирование заголовка Basic Auth
-        // Кодируем строку "логин:пароль" в Base64
-        var authString = $"{credentials.Login}:{credentials.Password}";
-        var base64AuthString = Convert.ToBase64String(System.Text.Encoding.UTF8.GetBytes(authString));
+        var response = await s_httpClient.PostAsJsonAsync($"{_appSettings.ZontSettings.ApiUrl}authtokens", requestBody);
+        response.EnsureSuccessStatusCode();
 
-        // Добавляем заголовок Authorization
-        httpClient.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue(
-            "Basic",
-            base64AuthString
-        );
-        httpClient.DefaultRequestHeaders.Add("X-ZONT-Client", credentials.Email);
-
-        // 2. Отправка POST запроса на эндпоинт получения токена
-        // Документация не требует тела запроса для этого POST-метода.
-        var requestBody = new { client_name = "Zont" };
-        var response = await httpClient.PostAsJsonAsync($"{baseUrl}authtokens", requestBody);
-
-        response.EnsureSuccessStatusCode(); // Выбросит исключение при ошибке 400-500
-
-        // 3. Чтение токена из ответа
-        // API, скорее всего, вернет объект JSON с полем "token"
         var authResponse =
             await response.Content.ReadFromJsonAsync<ZontAuthResponse>()
             ?? throw new InvalidOperationException("Токен не был получен.");
 
-        token = authResponse.Token;
+        var token = authResponse.Token;
+
+        s_httpClient.DefaultRequestHeaders.Add("X-ZONT-Token", $"{token}");
     }
 
     public async IAsyncEnumerable<string> GetTokensAsync()
     {
-        yield return token;
+        var response = await s_httpClient.GetAsync($"{_appSettings.ZontSettings.ApiUrl}authtokens");
+        response.EnsureSuccessStatusCode();
+
+        var tokens =
+            await response.Content.ReadFromJsonAsync<ZontTokensResponse>()
+            ?? throw new InvalidOperationException("Токены не были получены.");
+
+        foreach (var token in tokens.AuthTokens)
+        {
+            yield return $"TokenId: {token.TokenId}, Created: {token.Created}, LastUsed: {token.LastUsed}, ClientName: {token.ClientName}";
+        }
     }
 }
 
-public record ZontCredentials(
-    [Required] string Login,
-    [Required] string Password,
-    [Required] string Email);
-
 internal record ZontAuthResponse(
-    bool Ok,
-    string Token,
-    string TokenId);
+    [property: JsonPropertyName("ok")] bool Ok,
+    [property: JsonPropertyName("token")] string Token,
+    [property: JsonPropertyName("token_id")] string TokenId);
+
+internal record ZontTokensResponse(
+    [property: JsonPropertyName("ok")] bool Ok,
+    [property: JsonPropertyName("auth_tokens")] ZontTokensAuthTokensResponse[] AuthTokens);
+
+internal record ZontTokensAuthTokensResponse(
+    [property: JsonPropertyName("token_id")]
+    string TokenId,
+    [property: JsonPropertyName("created")]
+    [property: JsonConverter(typeof(UnixDateTimeConverter))]
+    DateTime Created,
+    [property: JsonPropertyName("last_used")]
+    [property: JsonConverter(typeof(UnixDateTimeConverter))]
+    DateTime LastUsed,
+    [property: JsonPropertyName("client_name")]
+    string ClientName,
+    [property: JsonPropertyName("cookie")]
+    string? Cookie,
+    [property: JsonPropertyName("expires_at")]
+    [property: JsonConverter(typeof(UnixNullableDateTimeConverter))]
+    DateTime? ExpiresAt);

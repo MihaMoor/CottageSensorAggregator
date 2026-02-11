@@ -1,7 +1,7 @@
-﻿using Microsoft.AspNetCore.Mvc;
-using ZontApi;
+﻿using CottageSensorAggregator.ZontApi;
+using Microsoft.AspNetCore.Mvc;
 
-namespace Api.Controllers;
+namespace CottageSensorAggregator.Api.Controllers;
 
 public class ZontController(ZontRepository zontRepository) : Controller
 {
@@ -9,13 +9,12 @@ public class ZontController(ZontRepository zontRepository) : Controller
     public async Task<IActionResult> Authorize()
     {
         await zontRepository.AuthorizeAsync();
-        return Ok(zontRepository.token);
+        return Ok();
     }
 
     [HttpGet("authtokens")]
-    public async Task<IActionResult> AuthTokens()
+    public IAsyncEnumerable<string> AuthTokens()
     {
-        var result = zontRepository.GetTokensAsync();
-        return Ok(result);
+        return zontRepository.GetTokensAsync();
     }
 }
