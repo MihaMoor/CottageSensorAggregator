@@ -1,6 +1,6 @@
-﻿using Microsoft.Extensions.Options;
+﻿using CottageSensorAggregator.ZontApi.Auth;
+using Microsoft.Extensions.Options;
 using System.Net.Http.Json;
-using System.Text.Json.Serialization;
 
 namespace CottageSensorAggregator.ZontApi;
 
@@ -26,7 +26,7 @@ public class ZontRepository
         response.EnsureSuccessStatusCode();
 
         var authResponse =
-            await response.Content.ReadFromJsonAsync<ZontAuthResponse>()
+            await response.Content.ReadFromJsonAsync<AuthResponse>()
             ?? throw new InvalidOperationException("Токен не был получен.");
 
         var token = authResponse.Token;
@@ -40,7 +40,7 @@ public class ZontRepository
         response.EnsureSuccessStatusCode();
 
         var tokens =
-            await response.Content.ReadFromJsonAsync<ZontTokensResponse>()
+            await response.Content.ReadFromJsonAsync<TokensResponse>()
             ?? throw new InvalidOperationException("Токены не были получены.");
 
         foreach (var token in tokens.AuthTokens)
@@ -49,29 +49,3 @@ public class ZontRepository
         }
     }
 }
-
-internal record ZontAuthResponse(
-    [property: JsonPropertyName("ok")] bool Ok,
-    [property: JsonPropertyName("token")] string Token,
-    [property: JsonPropertyName("token_id")] string TokenId);
-
-internal record ZontTokensResponse(
-    [property: JsonPropertyName("ok")] bool Ok,
-    [property: JsonPropertyName("auth_tokens")] ZontTokensAuthTokensResponse[] AuthTokens);
-
-internal record ZontTokensAuthTokensResponse(
-    [property: JsonPropertyName("token_id")]
-    string TokenId,
-    [property: JsonPropertyName("created")]
-    [property: JsonConverter(typeof(UnixDateTimeConverter))]
-    DateTime Created,
-    [property: JsonPropertyName("last_used")]
-    [property: JsonConverter(typeof(UnixDateTimeConverter))]
-    DateTime LastUsed,
-    [property: JsonPropertyName("client_name")]
-    string ClientName,
-    [property: JsonPropertyName("cookie")]
-    string? Cookie,
-    [property: JsonPropertyName("expires_at")]
-    [property: JsonConverter(typeof(UnixNullableDateTimeConverter))]
-    DateTime? ExpiresAt);
