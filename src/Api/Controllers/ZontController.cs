@@ -17,4 +17,10 @@ public class ZontController(ZontRepository zontRepository) : Controller
     {
         return zontRepository.GetTokensAsync();
     }
+
+    [HttpGet("devices")]
+    public async Task<IActionResult> GetDevices()
+    {
+        return Ok(await zontRepository.GetDevices());
+    }
 }
