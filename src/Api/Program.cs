@@ -1,5 +1,6 @@
 using CottageSensorAggregator.ZontApi;
 using Microsoft.OpenApi;
+using Serilog;
 
 namespace CottageSensorAggregator;
 
@@ -7,8 +8,11 @@ public class Program
 {
     public static void Main(string[] args)
     {
+        Serilog.Debugging.SelfLog.Enable(msg => Console.WriteLine(msg));
+
         var builder = WebApplication.CreateBuilder(args);
 
+        ConfigureLogging(builder);
         ConfigureServices(builder.Services, builder.Configuration);
         ConfigureSwagger(builder.Services, builder.Configuration);
 
@@ -25,6 +29,8 @@ public class Program
 
         var app = builder.Build();
 
+        app.UseSerilogRequestLogging();
+
         app.UseSwagger();
         app.UseSwaggerUI(options =>
         {
@@ -40,6 +46,18 @@ public class Program
         AuthInZont(app.Services.CreateScope());
 
         app.Run();
+    }
+
+    private static void ConfigureLogging(WebApplicationBuilder builder)
+    {
+        Log.Logger = new LoggerConfiguration()
+            .ReadFrom.Configuration(builder.Configuration)
+            .Enrich.FromLogContext()
+            .Enrich.WithMachineName()
+            .Enrich.WithThreadId()
+            .Enrich.WithProperty("Environment", builder.Environment.EnvironmentName)
+            .CreateLogger();
+        builder.Host.UseSerilog();
     }
 
     private static void ConfigureSwagger(IServiceCollection services, IConfiguration configuration)

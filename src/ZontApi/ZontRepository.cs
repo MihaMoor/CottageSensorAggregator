@@ -1,5 +1,6 @@
 ﻿using CottageSensorAggregator.ZontApi.Auth;
 using CottageSensorAggregator.ZontApi.Device;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using System.Net.Http.Json;
 using System.Text.Json;
@@ -14,11 +15,16 @@ public class ZontRepository
 {
     private static HttpClient s_httpClient = null!;
     private readonly AppSettings _appSettings;
+    private readonly ILogger<ZontRepository> _logger;
 
-    public ZontRepository(IOptionsSnapshot<AppSettings> appSettings, IHttpClientFactory httpClientFactory)
+    public ZontRepository(
+        IOptionsSnapshot<AppSettings> appSettings,
+        IHttpClientFactory httpClientFactory,
+        ILogger<ZontRepository> logger)
     {
         s_httpClient = httpClientFactory.CreateClient(AppSettings.ZontHttpClientName);
         _appSettings = appSettings.Value;
+        _logger = logger;
     }
 
     public async Task AuthorizeAsync()
@@ -58,7 +64,6 @@ public class ZontRepository
         response.EnsureSuccessStatusCode();
 
         string jsonString = await response.Content.ReadAsStringAsync();
-        Console.WriteLine(jsonString);
 
         var jObject = JsonNode.Parse(jsonString);
 
