@@ -95,9 +95,9 @@ public class Program
         services.AddOpenApi();
     }
 
-    private static async void AuthInZont(IServiceScope scope)
+    private static async void AuthInZont(IServiceScope scope, CancellationToken cancellationToken = default)
     {
         var zontRepository = scope.ServiceProvider.GetRequiredService<ZontRepository>();
-        await zontRepository.AuthorizeAsync();
+        await zontRepository.AuthorizeAsync(cancellationToken);
     }
 }
