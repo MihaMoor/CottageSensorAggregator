@@ -1,4 +1,9 @@
+using CottageSensorAggregator.Api.BackgroundServices;
+using CottageSensorAggregator.Api.Middlewares;
+using CottageSensorAggregator.Core;
+using CottageSensorAggregator.Core.Loggers;
 using CottageSensorAggregator.ZontApi;
+using Microsoft.Extensions.Diagnostics.HealthChecks;
 using Microsoft.OpenApi;
 using Serilog;
 
@@ -14,6 +19,7 @@ public class Program
 
         ConfigureLogging(builder);
         ConfigureServices(builder.Services, builder.Configuration);
+        ConfigureBackgroundServices(builder.Services);
         ConfigureSwagger(builder.Services, builder.Configuration);
 
         builder.WebHost.ConfigureKestrel((context, options) =>
@@ -27,25 +33,40 @@ public class Program
 
         });
 
-        var app = builder.Build();
+        AddHealthCheck(builder);
 
-        app.UseSerilogRequestLogging();
-
-        app.UseSwagger();
-        app.UseSwaggerUI(options =>
+        try
         {
-            options.SwaggerEndpoint("/swagger/v1/swagger.json", "v1");
-            options.DocumentTitle = AppSettings.AppName;
-            options.RoutePrefix = string.Empty;
-            options.EnableTryItOutByDefault();
-        });
+            var app = builder.Build();
 
-        app.MapOpenApi();
-        app.MapControllers();
+            app.UseSerilogRequestLogging();
+            app.UseMiddleware<HealthCheckLoggingMiddleware>();
+            app.MapHealthChecks("/health");
 
-        AuthInZont(app.Services.CreateScope());
+            app.UseSwagger();
+            app.UseSwaggerUI(options =>
+            {
+                options.SwaggerEndpoint("/swagger/v1/swagger.json", "v1");
+                options.DocumentTitle = AppSettings.AppName;
+                options.RoutePrefix = string.Empty;
+                options.EnableTryItOutByDefault();
+            });
 
-        app.Run();
+            app.MapOpenApi();
+            app.MapControllers();
+
+            AuthInZont(app.Services.CreateScope());
+
+            app.Run();
+        }
+        catch (Exception ex)
+        {
+            Log.Logger.Fatal(ex, ex.Message, ex.StackTrace);
+        }
+        finally
+        {
+            Log.CloseAndFlush();
+        }
     }
 
     private static void ConfigureLogging(WebApplicationBuilder builder)
@@ -60,29 +81,24 @@ public class Program
         builder.Host.UseSerilog();
     }
 
-    private static void ConfigureSwagger(IServiceCollection services, IConfiguration configuration)
-    {
-        services.AddEndpointsApiExplorer();
-        services.AddSwaggerGen(options =>
-        {
-            options.SwaggerDoc("v1", new OpenApiInfo { Title = AppSettings.AppName, Version = "v1" });
-        });
-    }
-
     private static void ConfigureServices(IServiceCollection services, IConfiguration configuration)
     {
-        AppSettings appSettings = configuration.GetSection("AppSettings").Get<AppSettings>()!;
+        services.Configure<ZontSettings>(configuration.GetSection("ZontSettings"));
+        services.Configure<HealthCheckSettings>(configuration.GetSection("HealthCheckSettings"));
 
-        services.Configure<AppSettings>(configuration.GetSection("AppSettings"));
+        services.AddSingleton(typeof(HealthCheckLogger<>));
+        services.AddScoped(typeof(ApplicationLogger<>));
+
+        ZontSettings zontSettings = configuration.GetSection("ZontSettings").Get<ZontSettings>()!;
 
         services.AddHttpClient(AppSettings.ZontHttpClientName, httpClient =>
         {
-            var authString = $"{appSettings.ZontSettings.Login}:{appSettings.ZontSettings.Password}";
+            var authString = $"{zontSettings.Login}:{zontSettings.Password}";
             var base64AuthString = Convert.ToBase64String(System.Text.Encoding.UTF8.GetBytes(authString));
 
-            httpClient.BaseAddress = new Uri(appSettings.ZontSettings.ApiUrl);
+            httpClient.BaseAddress = new Uri(zontSettings.ApiUrl);
             httpClient.DefaultRequestHeaders.Add("Accept", "application/json");
-            httpClient.DefaultRequestHeaders.Add("X-ZONT-Client", appSettings.ZontSettings.Email);
+            httpClient.DefaultRequestHeaders.Add("X-ZONT-Client", zontSettings.Email);
             httpClient.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue(
                 "Basic",
                 base64AuthString
@@ -93,6 +109,33 @@ public class Program
 
         services.AddControllers();
         services.AddOpenApi();
+    }
+
+    private static void ConfigureBackgroundServices(IServiceCollection services)
+    {
+        services.AddHostedService<HealthCheckReporter>();
+    }
+
+    private static void ConfigureSwagger(IServiceCollection services, IConfiguration configuration)
+    {
+        services.AddEndpointsApiExplorer();
+        services.AddSwaggerGen(options =>
+        {
+            options.SwaggerDoc("v1", new OpenApiInfo { Title = AppSettings.AppName, Version = "v1" });
+        });
+    }
+
+    private static void AddHealthCheck(WebApplicationBuilder builder)
+    {
+        HealthCheckSettings healthCheckSettings = builder.Configuration.GetSection("HealthCheckSettings").Get<HealthCheckSettings>()!;
+
+        builder.Services.AddHealthChecks();
+
+        builder.Services.Configure<HealthCheckPublisherOptions>(options =>
+        {
+            options.Delay = healthCheckSettings.Delay;  // Задержка перед первым запуском
+            options.Period = healthCheckSettings.Period; // Интервал между проверками
+        });
     }
 
     private static async void AuthInZont(IServiceScope scope, CancellationToken cancellationToken = default)

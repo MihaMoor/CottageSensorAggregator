@@ -1,4 +1,5 @@
-﻿using CottageSensorAggregator.ZontApi.Auth;
+﻿using CottageSensorAggregator.Core.Loggers;
+using CottageSensorAggregator.ZontApi.Auth;
 using CottageSensorAggregator.ZontApi.Device;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
@@ -15,16 +16,16 @@ namespace CottageSensorAggregator.ZontApi;
 public class ZontRepository
 {
     private static HttpClient s_httpClient = null!;
-    private readonly AppSettings _appSettings;
+    private readonly ZontSettings _zontSettings;
     private readonly ILogger<ZontRepository> _logger;
 
     public ZontRepository(
-        IOptionsSnapshot<AppSettings> appSettings,
+        IOptions<ZontSettings> zontSettings,
         IHttpClientFactory httpClientFactory,
-        ILogger<ZontRepository> logger)
+        ApplicationLogger<ZontRepository> logger)
     {
+        _zontSettings = zontSettings.Value;
         s_httpClient = httpClientFactory.CreateClient(AppSettings.ZontHttpClientName);
-        _appSettings = appSettings.Value;
         _logger = logger;
     }
 
@@ -32,7 +33,7 @@ public class ZontRepository
     {
         var requestBody = new { client_name = AppSettings.AppName };
 
-        var response = await s_httpClient.PostAsJsonAsync($"{_appSettings.ZontSettings.ApiUrl}authtokens", requestBody, cancellationToken);
+        var response = await s_httpClient.PostAsJsonAsync($"{_zontSettings.ApiUrl}authtokens", requestBody, cancellationToken);
 
         if (!response.IsSuccessStatusCode)
         {
@@ -40,6 +41,7 @@ public class ZontRepository
             _logger.LogError(
                 "Ошибка.\nСтатус: {StatusCode}\nОтвет: {ErrorContent}",
                 response.StatusCode, errorContent);
+
             throw new HttpRequestException($"Ошибка авторизации: {response.StatusCode}");
         }
 
@@ -49,17 +51,21 @@ public class ZontRepository
         {
             _logger.LogError("Ответ получен, но токен отсутствует или не десериализован");
             _logger.LogError($"Ответ:{Environment.NewLine}{response.Content.ToString()}");
+
             throw new InvalidOperationException("Токен не был получен.");
         }
 
         var token = authResponse.Token;
 
         s_httpClient.DefaultRequestHeaders.Add("X-ZONT-Token", $"{token}");
+        _logger.LogInformation(
+            "Токен успешно получен. AccessToken (первые 10 символов): {AccessTokenPrefix}",
+            token.Substring(0, Math.Min(10, token.Length)));
     }
 
     public async IAsyncEnumerable<string> GetTokensAsync([EnumeratorCancellation] CancellationToken cancellationToken)
     {
-        var response = await s_httpClient.GetAsync($"{_appSettings.ZontSettings.ApiUrl}authtokens", cancellationToken);
+        var response = await s_httpClient.GetAsync($"{_zontSettings.ApiUrl}authtokens", cancellationToken);
 
         if (!response.IsSuccessStatusCode)
         {
@@ -67,6 +73,7 @@ public class ZontRepository
             _logger.LogError(
                 "Ошибка.\nСтатус: {StatusCode}\nОтвет: {ErrorContent}",
                 response.StatusCode, errorContent);
+
             throw new HttpRequestException($"Ошибка получения токенов: {response.StatusCode}");
         }
 
@@ -76,19 +83,23 @@ public class ZontRepository
         {
             _logger.LogError("Ответ получен, но не десериализован");
             _logger.LogError($"Ответ:{Environment.NewLine}{response.Content.ToString()}");
+
             throw new InvalidOperationException("Не удалось дессериализовать токены.");
         }
 
         foreach (var token in tokens.AuthTokens)
         {
             cancellationToken.ThrowIfCancellationRequested();
-            yield return $"TokenId: {token.TokenId}, Created: {token.Created}, LastUsed: {token.LastUsed}, ClientName: {token.ClientName}";
+            var str = $"TokenId: {token.TokenId}, Created: {token.Created}, LastUsed: {token.LastUsed}, ClientName: {token.ClientName}";
+            _logger.LogInformation(str);
+
+            yield return str;
         }
     }
 
     public async Task<string> GetDevices(CancellationToken cancellationToken)
     {
-        var response = await s_httpClient.GetAsync($"{_appSettings.ZontSettings.ApiUrl}devices", cancellationToken);
+        var response = await s_httpClient.GetAsync($"{_zontSettings.ApiUrl}devices", cancellationToken);
 
         if (!response.IsSuccessStatusCode)
         {
@@ -96,6 +107,7 @@ public class ZontRepository
             _logger.LogError(
                 "Ошибка.\nСтатус: {StatusCode}\nОтвет: {ErrorContent}",
                 response.StatusCode, errorContent);
+
             throw new HttpRequestException($"Ошибка: {response.StatusCode}");
         }
 
@@ -105,6 +117,7 @@ public class ZontRepository
         {
             _logger.LogError("Ответ пустой.");
             _logger.LogError($"Ответ:{Environment.NewLine}{response.Content.ToString()}");
+
             throw new InvalidOperationException("Пришел пустой ответ.");
         }
 
@@ -114,6 +127,7 @@ public class ZontRepository
         {
             var error = $"""error: {jObject?["error"]}{Environment.NewLine}error_ui: {jObject?["error_ui"]}""";
             _logger.LogError(error);
+
             throw new InvalidOperationException(error);
         }
 
@@ -152,6 +166,9 @@ public class ZontRepository
             PropertyNamingPolicy = JsonNamingPolicy.CamelCase
         };
 
-        return JsonSerializer.Serialize(deviceResponse, jsonSerialiseOptions);
+        var serializedDeviceResponse = JsonSerializer.Serialize(deviceResponse, jsonSerialiseOptions);
+        _logger.LogInformation(serializedDeviceResponse);
+
+        return serializedDeviceResponse;
     }
 }
