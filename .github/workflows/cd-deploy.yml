@@ -1,0 +1,64 @@
+name: CD Build and Release by Tag
+
+on:
+    push:
+        tags: ["release-*"] # триггер только на теги вида release-*
+
+jobs:
+    build-and-release:
+        runs-on: ubuntu-latest
+
+        steps:
+            - name: Checkout code
+              uses: actions/checkout@v4
+              with:
+                  fetch-depth: 0
+
+            - name: Setup .NET
+              uses: actions/setup-dotnet@v3
+              with:
+                  dotnet-version: "10.x" # укажите нужную версию .NET
+
+            - name: Restore dependencies
+              run: dotnet restore
+
+            - name: Build project
+              run: dotnet build --configuration Release --no-restore
+
+            - name: Publish application
+              run: dotnet publish -c Release -o ./publish
+
+            - name: Extract tag name (without 'release-' prefix)
+              id: extract-tag
+              run: |
+                  TAG_NAME="${{ github.ref_name }}"
+                  # Убираем префикс 'release-'
+                  VERSION="${TAG_NAME#release-}"
+                  echo "version=$VERSION" >> $GITHUB_OUTPUT
+
+            - name: Create ZIP archive
+              run: |
+                  cd publish
+                  zip -r ../CottageSensorAggregator-${{ steps.extract-tag.outputs.version }}.zip .
+                  cd ..
+
+            - name: Create GitHub Release
+              id: create_release
+              uses: actions/create-release@v1
+              env:
+                  GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+              with:
+                  tag_name: ${{ github.ref_name }}
+                  release_name: Release ${{ steps.extract-tag.outputs.version }}
+                  draft: false
+                  prerelease: false
+
+            - name: Upload ZIP to Release
+              uses: actions/upload-release-asset@v1
+              env:
+                  GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+              with:
+                  upload_url: ${{ steps.create_release.outputs.upload_url }}
+                  asset_path: ./CottageSensorAggregator-${{ steps.extract-tag.outputs.version }}.zip
+                  asset_name: CottageSensorAggregator-${{ steps.extract-tag.outputs.version }}.zip
+                  asset_content_type: application/zip
