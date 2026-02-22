@@ -5,11 +5,13 @@ namespace CottageSensorAggregator.Api.Controllers;
 
 public class ZontController(ZontRepository zontRepository) : Controller
 {
-    [HttpGet("auth")]
-    public async Task<IActionResult> Authorize(CancellationToken cancellationToken = default)
+    [HttpDelete("delete-tokens")]
+    public async Task<IActionResult> Authorize(
+        [FromBody] string[] tokenIds,
+        CancellationToken cancellationToken = default)
     {
-        await zontRepository.AuthorizeAsync(cancellationToken);
-        return Ok();
+        await zontRepository.DeleteTokensAsync(tokenIds, cancellationToken);
+        return NoContent();
     }
 
     [HttpGet("authtokens")]
@@ -21,6 +23,6 @@ public class ZontController(ZontRepository zontRepository) : Controller
     [HttpGet("devices")]
     public async Task<IActionResult> GetDevices(CancellationToken cancellationToken = default)
     {
-        return Ok(await zontRepository.GetDevices(cancellationToken));
+        return Ok(await zontRepository.GetDevicesAsync(cancellationToken));
     }
 }

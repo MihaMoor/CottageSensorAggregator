@@ -65,27 +65,7 @@ public class ZontRepository
 
     public async IAsyncEnumerable<string> GetTokensAsync([EnumeratorCancellation] CancellationToken cancellationToken)
     {
-        var response = await s_httpClient.GetAsync($"{_zontSettings.ApiUrl}authtokens", cancellationToken);
-
-        if (!response.IsSuccessStatusCode)
-        {
-            var errorContent = await response.Content.ReadAsStringAsync(cancellationToken);
-            _logger.LogError(
-                "Ошибка.\nСтатус: {StatusCode}\nОтвет: {ErrorContent}",
-                response.StatusCode, errorContent);
-
-            throw new HttpRequestException($"Ошибка получения токенов: {response.StatusCode}");
-        }
-
-        var tokens = await response.Content.ReadFromJsonAsync<TokensResponse>(cancellationToken);
-
-        if (tokens == null)
-        {
-            _logger.LogError("Ответ получен, но не десериализован");
-            _logger.LogError($"Ответ:{Environment.NewLine}{response.Content.ToString()}");
-
-            throw new InvalidOperationException("Не удалось дессериализовать токены.");
-        }
+        var tokens = await GetTokens(cancellationToken);
 
         foreach (var token in tokens.AuthTokens)
         {
@@ -97,7 +77,7 @@ public class ZontRepository
         }
     }
 
-    public async Task<string> GetDevices(CancellationToken cancellationToken)
+    public async Task<string> GetDevicesAsync(CancellationToken cancellationToken)
     {
         var response = await s_httpClient.GetAsync($"{_zontSettings.ApiUrl}devices", cancellationToken);
 
@@ -170,5 +150,49 @@ public class ZontRepository
         _logger.LogInformation(serializedDeviceResponse);
 
         return serializedDeviceResponse;
+    }
+
+    public async Task DeleteTokensAsync(string[] tokenIds, CancellationToken cancellationToken)
+    {
+        foreach (var token in tokenIds)
+        {
+            try
+            {
+                await s_httpClient.DeleteAsync($"{_zontSettings.ApiUrl}authtokens/{token}", cancellationToken);
+                _logger.LogInformation($"Удален токен:\nToken id = {token}");
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning($"Не удалось удалить токен: Token id = '{token}'");
+                _logger.LogWarning(ex, ex.Message, ex.StackTrace);
+            }
+        }
+    }
+
+    private async Task<TokensResponse> GetTokens(CancellationToken cancellationToken)
+    {
+        var response = await s_httpClient.GetAsync($"{_zontSettings.ApiUrl}authtokens", cancellationToken);
+
+        if (!response.IsSuccessStatusCode)
+        {
+            var errorContent = await response.Content.ReadAsStringAsync(cancellationToken);
+            _logger.LogError(
+                "Ошибка.\nСтатус: {StatusCode}\nОтвет: {ErrorContent}",
+                response.StatusCode, errorContent);
+
+            throw new HttpRequestException($"Ошибка получения токенов: {response.StatusCode}");
+        }
+
+        var tokens = await response.Content.ReadFromJsonAsync<TokensResponse>(cancellationToken);
+
+        if (tokens == null)
+        {
+            _logger.LogError("Ответ получен, но не десериализован");
+            _logger.LogError($"Ответ:{Environment.NewLine}{response.Content.ToString()}");
+
+            throw new InvalidOperationException("Не удалось дессериализовать токены.");
+        }
+
+        return tokens;
     }
 }
