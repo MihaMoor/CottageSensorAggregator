@@ -29,7 +29,7 @@ public class ZontRepository
         _logger = logger;
     }
 
-    public async Task AuthorizeAsync(CancellationToken cancellationToken)
+    public async Task<bool> AuthorizeAsync(CancellationToken cancellationToken)
     {
         var requestBody = new { client_name = AppSettings.AppName };
 
@@ -42,7 +42,7 @@ public class ZontRepository
                 "Ошибка.\nСтатус: {StatusCode}\nОтвет: {ErrorContent}",
                 response.StatusCode, errorContent);
 
-            throw new HttpRequestException($"Ошибка авторизации: {response.StatusCode}");
+            return false;
         }
 
         var authResponse = await response.Content.ReadFromJsonAsync<AuthResponse>(cancellationToken);
@@ -52,7 +52,7 @@ public class ZontRepository
             _logger.LogError("Ответ получен, но токен отсутствует или не десериализован");
             _logger.LogError($"Ответ:{Environment.NewLine}{response.Content.ToString()}");
 
-            throw new InvalidOperationException("Токен не был получен.");
+            return false;
         }
 
         var token = authResponse.Token;
@@ -61,6 +61,8 @@ public class ZontRepository
         _logger.LogInformation(
             "Токен успешно получен. AccessToken (первые 10 символов): {AccessTokenPrefix}",
             token.Substring(0, Math.Min(10, token.Length)));
+
+        return true;
     }
 
     public async IAsyncEnumerable<string> GetTokensAsync([EnumeratorCancellation] CancellationToken cancellationToken)

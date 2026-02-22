@@ -141,6 +141,17 @@ public class Program
     private static async void AuthInZont(IServiceScope scope, CancellationToken cancellationToken = default)
     {
         var zontRepository = scope.ServiceProvider.GetRequiredService<ZontRepository>();
-        await zontRepository.AuthorizeAsync(cancellationToken);
+        var isSuccess = false;
+        while (!isSuccess)
+        {
+            try
+            {
+                isSuccess = await zontRepository.AuthorizeAsync(cancellationToken);
+            }
+            catch (Exception ex)
+            {
+                Log.Logger.Error(ex, ex.Message, ex.StackTrace);
+            }
+        }
     }
 }
