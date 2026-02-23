@@ -5,6 +5,7 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using System.Net.Http.Json;
 using System.Runtime.CompilerServices;
+using System.Text.Encodings.Web;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 
@@ -117,6 +118,8 @@ public class ZontRepository
         {
             PropertyNameCaseInsensitive = true,
             PropertyNamingPolicy = JsonNamingPolicy.SnakeCaseLower,
+            Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping,
+            WriteIndented = true,
         };
 
         DeviceResponse? deviceResponse = null;
@@ -129,6 +132,8 @@ public class ZontRepository
             {
                 _logger.LogError("Не удалось дессериализовать ответ.");
                 _logger.LogError($"Ответ:{Environment.NewLine}{jsonString}");
+
+                throw new InvalidOperationException("Не удалось дессериализовать ответ.");
             }
         }
         catch (JsonException ex)
@@ -145,7 +150,8 @@ public class ZontRepository
         {
             WriteIndented = true,
             PropertyNameCaseInsensitive = true,
-            PropertyNamingPolicy = JsonNamingPolicy.CamelCase
+            PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
+            Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping,
         };
 
         var serializedDeviceResponse = JsonSerializer.Serialize(deviceResponse, jsonSerialiseOptions);

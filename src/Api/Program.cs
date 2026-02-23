@@ -87,7 +87,8 @@ public class Program
         services.Configure<HealthCheckSettings>(configuration.GetSection("HealthCheckSettings"));
 
         services.AddSingleton(typeof(HealthCheckLogger<>));
-        services.AddScoped(typeof(ApplicationLogger<>));
+        services.AddSingleton(typeof(CollectZontDeviceDataLogger<>));
+        services.AddSingleton(typeof(ApplicationLogger<>));
 
         ZontSettings zontSettings = configuration.GetSection("ZontSettings").Get<ZontSettings>()!;
 
@@ -105,7 +106,7 @@ public class Program
             );
         });
 
-        services.AddScoped<ZontRepository>();
+        services.AddSingleton<ZontRepository>();
 
         services.AddControllers();
         services.AddOpenApi();
@@ -114,6 +115,7 @@ public class Program
     private static void ConfigureBackgroundServices(IServiceCollection services)
     {
         services.AddHostedService<HealthCheckReporter>();
+        services.AddHostedService<CollectZontDeviceData>();
     }
 
     private static void ConfigureSwagger(IServiceCollection services, IConfiguration configuration)
