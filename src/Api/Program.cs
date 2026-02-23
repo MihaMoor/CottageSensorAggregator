@@ -1,5 +1,5 @@
-using CottageSensorAggregator.Api.BackgroundServices;
 using CottageSensorAggregator.Api.Middlewares;
+using CottageSensorAggregator.BackgroundWorkers;
 using CottageSensorAggregator.Core;
 using CottageSensorAggregator.Core.Loggers;
 using CottageSensorAggregator.ZontApi;

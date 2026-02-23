@@ -6,6 +6,7 @@
     <File Path="docs/appsettings.md" />
   </Folder>
   <Project Path="src/Api/Api.csproj" />
+  <Project Path="src/BackgroundWorkers/BackgroundWorkers.csproj" Id="f4631421-bff5-4c51-b777-4bfad5ab859c" />
   <Project Path="src/Core/Core.csproj" Id="207c03e6-0c93-4b68-90aa-7bfa18b68fcf" />
   <Project Path="src/ZontApi/ZontApi.csproj" Id="8b21f592-215a-45f1-adf4-2c0a804327ae" />
 </Solution>

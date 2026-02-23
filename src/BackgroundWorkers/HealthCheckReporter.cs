@@ -1,10 +1,11 @@
 ﻿using CottageSensorAggregator.Core;
 using CottageSensorAggregator.Core.Loggers;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
+using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
-using Serilog.Context;
 
-namespace CottageSensorAggregator.Api.BackgroundServices;
+namespace CottageSensorAggregator.BackgroundWorkers;
 
 public class HealthCheckReporter : BackgroundService
 {
@@ -63,10 +64,7 @@ public class HealthCheckReporter : BackgroundService
             }).ToList()
         };
 
-        using (LogContext.PushProperty("LogType", LogType.HealthCheck))
-        {
-            _logger.LogInformation("Service health status: {@HealthData}", healthData);
-        }
+        _logger.LogInformation("Service health status: {@HealthData}", healthData);
     }
 
 }
