@@ -10,12 +10,12 @@ public class CollectZontDeviceData : BackgroundService
 {
     private readonly ZontRepository _zontRepository;
     private readonly ZontSettings _zontSettings;
-    private readonly CollectZontDeviceDataLogger<CollectZontDeviceData> _logger;
+    private readonly ApplicationLogger<CollectZontDeviceData> _logger;
 
     public CollectZontDeviceData(
         ZontRepository zontRepository,
         IOptions<ZontSettings> zontSettings,
-        CollectZontDeviceDataLogger<CollectZontDeviceData> logger)
+        ApplicationLogger<CollectZontDeviceData> logger)
     {
         _zontRepository = zontRepository;
         _zontSettings = zontSettings.Value;
@@ -31,7 +31,6 @@ public class CollectZontDeviceData : BackgroundService
                 string devices = await _zontRepository.GetDevicesAsync(cancellationToken);
 
                 _logger.LogInformation("Получены данные по устройствам");
-                _logger.LogInformation(devices);
             }
             catch (Exception ex)
             {

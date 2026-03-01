@@ -3,21 +3,26 @@ using CottageSensorAggregator.BackgroundWorkers;
 using CottageSensorAggregator.Core;
 using CottageSensorAggregator.Core.Loggers;
 using CottageSensorAggregator.ZontApi;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Design;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
 using Microsoft.OpenApi;
+using Npgsql;
+using PostgresDb;
 using Serilog;
 
 namespace CottageSensorAggregator;
 
 public class Program
 {
-    public static void Main(string[] args)
+    public static async Task Main(string[] args)
     {
-        Serilog.Debugging.SelfLog.Enable(msg => Console.WriteLine(msg));
+        Serilog.Debugging.SelfLog.Enable(msg => Log.Logger.Information(msg));
 
         var builder = WebApplication.CreateBuilder(args);
 
         ConfigureLogging(builder);
+        ConfigureDatabases(builder);
         ConfigureServices(builder.Services, builder.Configuration);
         ConfigureBackgroundServices(builder.Services);
         ConfigureSwagger(builder.Services, builder.Configuration);
@@ -38,6 +43,8 @@ public class Program
         try
         {
             var app = builder.Build();
+
+            CheckMigrations(app.Services);
 
             app.UseSerilogRequestLogging();
             app.UseMiddleware<HealthCheckLoggingMiddleware>();
@@ -81,13 +88,20 @@ public class Program
         builder.Host.UseSerilog();
     }
 
+    private static void ConfigureDatabases(WebApplicationBuilder builder)
+    {
+        builder.Services.AddDbContext<PostgresContext>(options =>
+        {
+            options.UseNpgsql(builder.Configuration.GetConnectionString(AppSettings.PostgresConnectionStringName));
+        });
+    }
+
     private static void ConfigureServices(IServiceCollection services, IConfiguration configuration)
     {
         services.Configure<ZontSettings>(configuration.GetSection("ZontSettings"));
         services.Configure<HealthCheckSettings>(configuration.GetSection("HealthCheckSettings"));
 
         services.AddSingleton(typeof(HealthCheckLogger<>));
-        services.AddSingleton(typeof(CollectZontDeviceDataLogger<>));
         services.AddSingleton(typeof(ApplicationLogger<>));
 
         ZontSettings zontSettings = configuration.GetSection("ZontSettings").Get<ZontSettings>()!;
@@ -155,5 +169,70 @@ public class Program
                 Log.Logger.Error(ex, ex.Message, ex.StackTrace);
             }
         }
+    }
+
+    private static async void CheckMigrations(IServiceProvider services)
+    {
+        using (var scope = services.CreateScope())
+        {
+            var context = scope.ServiceProvider.GetRequiredService<PostgresContext>();
+            await ApplyMigrations(context);
+        }
+    }
+
+    private static async Task ApplyMigrations(PostgresContext context)
+    {
+        try
+        {
+            var pendingMigrations = await context.Database.GetPendingMigrationsAsync();
+
+            if (pendingMigrations.Any())
+            {
+                Log.Logger.Information($"Применяем {pendingMigrations.Count()} миграций...");
+                await context.Database.MigrateAsync();
+                Log.Logger.Information("Миграции успешно применены.");
+            }
+            else
+            {
+                Log.Logger.Information("База данных актуальна, миграции не требуются.");
+            }
+        }
+        catch (Exception ex)
+        {
+            Log.Logger.Error($"Критическая ошибка при применении миграций: {ex.GetType().Name}: {ex.Message}");
+
+            if (ex is NpgsqlException npgsqlEx)
+            {
+                Log.Logger.Error($"Код ошибки PostgreSQL: {npgsqlEx.SqlState}");
+            }
+
+            throw;
+        }
+    }
+}
+
+public class PostgresContextFactory : IDesignTimeDbContextFactory<PostgresContext>
+{
+    public PostgresContext CreateDbContext(string[] args)
+    {
+        var configuration = new ConfigurationBuilder()
+            .SetBasePath(Directory.GetCurrentDirectory())
+            .AddJsonFile("appsettings.json")
+            .AddJsonFile("appsettings.Development.json", optional: true)
+            .AddEnvironmentVariables()
+            .Build();
+
+        var connectionString = configuration.GetConnectionString(AppSettings.PostgresConnectionStringName);
+
+        if (string.IsNullOrWhiteSpace(connectionString))
+        {
+            throw new InvalidOperationException(
+                $"Строка подключения к БД '{AppSettings.PostgresConnectionStringName}' не найдена в конфигурации.");
+        }
+
+        var optionsBuilder = new DbContextOptionsBuilder<PostgresContext>();
+        optionsBuilder.UseNpgsql(connectionString);
+
+        return new PostgresContext(optionsBuilder.Options);
     }
 }

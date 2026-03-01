@@ -1,6 +1,6 @@
 ﻿using System.ComponentModel.DataAnnotations;
 
-namespace CottageSensorAggregator;
+namespace CottageSensorAggregator.ZontApi;
 
 public record ZontSettings(
     [Required] string Email,
