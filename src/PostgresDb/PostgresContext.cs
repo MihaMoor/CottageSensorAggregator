@@ -8,7 +8,7 @@ public class PostgresContext : DbContext
 {
     public DbSet<ZontDeviceEntity> ZontDevices { get; set; }
     public DbSet<ZontCircuitsEntity> ZontCircuits { get; set; }
-    //public DbSet<ZontSensoreEntity> ZontSensores { get; set; }
+    public DbSet<ZontSensoreEntity> ZontSensores { get; set; }
 
     public PostgresContext(DbContextOptions<PostgresContext> options)
         : base(options) { }
@@ -19,5 +19,6 @@ public class PostgresContext : DbContext
 
         modelBuilder.ApplyConfiguration(new ZontDeviceConfiguration());
         modelBuilder.ApplyConfiguration(new ZontCircuitsConfiguration());
+        modelBuilder.ApplyConfiguration(new ZontSensoreConfiguration());
     }
 }
