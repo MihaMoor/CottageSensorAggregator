@@ -80,7 +80,7 @@ public class ZontRepository
         }
     }
 
-    public async Task<string> GetDevicesAsync(CancellationToken cancellationToken)
+    public async Task<DeviceResponse> GetDevicesAsync(CancellationToken cancellationToken)
     {
         var response = await s_httpClient.GetAsync($"{_zontSettings.ApiUrl}devices", cancellationToken);
 
@@ -157,7 +157,7 @@ public class ZontRepository
         var serializedDeviceResponse = JsonSerializer.Serialize(deviceResponse, jsonSerialiseOptions);
         _logger.LogInformation(serializedDeviceResponse);
 
-        return serializedDeviceResponse;
+        return deviceResponse!;
     }
 
     public async Task DeleteTokensAsync(string[] tokenIds, CancellationToken cancellationToken)

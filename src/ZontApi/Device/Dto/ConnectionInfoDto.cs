@@ -2,7 +2,7 @@
 
 namespace CottageSensorAggregator.ZontApi.Device.Dto;
 
-internal record ConnectionInfoDto
+public record ConnectionInfoDto
 (
     [property: JsonPropertyName("conn_state")] ConnectionStateDto? ConnectionState,
     [property: JsonPropertyName("gsm")] GSMConnectionDto? GSM

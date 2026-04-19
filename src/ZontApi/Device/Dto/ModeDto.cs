@@ -2,7 +2,7 @@
 
 namespace CottageSensorAggregator.ZontApi.Device.Dto;
 
-internal record ModeDto
+public record ModeDto
 (
     [property: JsonPropertyName("id")] int Id,
     [property: JsonPropertyName("name")] string Name,

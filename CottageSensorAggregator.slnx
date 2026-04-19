@@ -8,6 +8,7 @@
   <Project Path="src/Api/Api.csproj" />
   <Project Path="src/BackgroundWorkers/BackgroundWorkers.csproj" Id="f4631421-bff5-4c51-b777-4bfad5ab859c" />
   <Project Path="src/Core/Core.csproj" Id="207c03e6-0c93-4b68-90aa-7bfa18b68fcf" />
+  <Project Path="src/Mappers/Mappers.csproj" Id="10048537-4035-4b66-ae16-b840f47c4e90" />
   <Project Path="src/PostgresDb/PostgresDb.csproj" Id="802945b4-1395-454b-9cfb-189a9ebec3ec" />
   <Project Path="src/ZontApi/ZontApi.csproj" Id="8b21f592-215a-45f1-adf4-2c0a804327ae" />
 </Solution>

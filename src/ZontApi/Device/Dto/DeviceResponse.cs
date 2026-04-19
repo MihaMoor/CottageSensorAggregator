@@ -3,7 +3,7 @@ using System.Text.Json.Serialization;
 
 namespace CottageSensorAggregator.ZontApi.Device;
 
-internal record DeviceResponse(
+public record DeviceResponse(
     [property: JsonPropertyName("ok")] bool IsOk,
     [property: JsonPropertyName("devices")] List<DeviceDto> Devices
     );

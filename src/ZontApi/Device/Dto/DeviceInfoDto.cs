@@ -2,7 +2,7 @@
 
 namespace CottageSensorAggregator.ZontApi.Device.Dto;
 
-internal record DeviceInfoDto
+public record DeviceInfoDto
 (
     [property: JsonPropertyName("id")] string DeviceTypeId,
     [property: JsonPropertyName("model")] string Model,
@@ -11,7 +11,7 @@ internal record DeviceInfoDto
     [property: JsonPropertyName("version")] VersionInfoDto Version
 );
 
-internal record VersionInfoDto
+public record VersionInfoDto
 (
     [property: JsonPropertyName("hardware")] string HardwareVersion,
     [property: JsonPropertyName("software")] string SoftwareVersion

@@ -92,7 +92,12 @@ public class Program
     {
         builder.Services.AddDbContext<PostgresContext>(options =>
         {
-            options.UseNpgsql(builder.Configuration.GetConnectionString(AppSettings.PostgresConnectionStringName));
+            options.UseNpgsql(builder.Configuration.GetConnectionString(
+                AppSettings.PostgresConnectionStringName),
+                options =>
+                {
+                    options.UseAdminDatabase(AppSettings.PostgresAdminDatabaseName);
+                });
         });
     }
 
